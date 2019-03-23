@@ -1,0 +1,176 @@
+
+
+//Become PHP Facebook Developer: Password-Less Authentication
+//SOURCE CODE
+//ClayDesk E-Campus. Syed Raza
+
+<?php
+//This is for PHP session check
+function is_session_started()
+{
+    if ( php_sapi_name() !== 'cli' ) {
+        if ( version_compare(phpversion(), '5.4.0', '>=') ) {
+            return session_status() === PHP_SESSION_ACTIVE ? TRUE : FALSE;
+        } else {
+            return session_id() === '' ? FALSE : TRUE;
+        }
+    }
+    return FALSE;
+}
+// verifying POST data and adding the values to session variables
+if(isset($_POST["code"])){
+  session_start();
+  $_SESSION["code"] = $_POST["code"];
+  $_SESSION["csrf_nonce"] = $_POST["csrf_nonce"];
+  $ch = curl_init();
+//Here are the set URL elements
+  $fb_app_id = ENTER YOUR OWN APP-ID;
+  $ak_secret = 'ENTER ACCOUNT KIT SECRET TOKEN KEY';
+  $token = 'AA|'.$fb_app_id.'|'.$ak_secret;
+  // Here we are going to get access tokens
+  $url = 'https://graph.accountkit.com/v1.1/access_token?grant_type=authorization_code&code='.$_POST["code"].'&access_token='.$token;
+  curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  curl_setopt($ch, CURLOPT_URL,$url);
+  $result=curl_exec($ch);
+  $info = json_decode($result);
+  // Get the account information
+  $url = 'https://graph.accountkit.com/v1.1/me/?access_token='.$info->access_token;
+  curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  curl_setopt($ch, CURLOPT_URL,$url);
+  $result=curl_exec($ch);
+  curl_close($ch);
+  $final = json_decode($result);  
+}
+
+?>
+
+<html>
+<head>
+  <title>Login with Account Kit</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://code.getmdl.io/1.1.3/material.indigo-pink.min.css">
+  
+  <script src="https://sdk.accountkit.com/en_US/sdk.js"></script>
+  
+</head>
+<body>
+    
+<style>
+
+    body {
+      background-image: url("road5.jpg");
+      text-align: center;
+      
+    }
+       
+  </style>
+ <div class = "row" >
+      <div class = "col-xs-6 col-md-offset-3" style = "background-color: #00000">
+                   
+<?php
+// verifying if the session exists
+if(is_session_started() === FALSE && !isset($_SESSION)){
+?>
+<center><h1 class="ac"><font color="white">Main Login Page</h1></font>
+<p class="ac"><font color="white"><h4>Password-Less Authentication<br>Using Facebook Account Kit for Web with PHP</h4></font></p>
+
+<div class="buttons">
+
+  <button style="width:180px;height:75px; border: 3px solid #a1a1a1; border-radius: 15px; background-color: #f2e394; font: bold 20px Arial"; onclick="phone_btn_onclick();">Login with SMS</button>
+  <button style="width:180px;height:75px; border: 3px solid #a1a1a1; border-radius: 15px; background-color: #f2e394; font: bold 20px Arial"; onclick="email_btn_onclick();">Login with Email</button>
+</div>
+<form action="" method="POST" id="my_form">
+  <input type="hidden" name="code" id="code">
+  <input type="hidden" name="csrf_nonce" id="csrf_nonce">
+</form></center>
+<?php
+}else{
+?>
+
+<h1 class="ac">Login with Account Kit</h1>
+<p class="ac">The session with Facebook Account Kit is already started.</p>
+<h3 class="ac">Your Information</h3>
+<p class="ac">
+    
+  <!-- show account information -->
+  
+  <style>
+
+    body {
+      background-image: url("");
+      text-align: center;
+      
+    }
+        
+  </style>
+  
+  <strong>ID:</strong> <?=$final->id?> <br>
+  <?php
+  if(isset($final->email)){
+  ?>
+  <strong>Email:</strong> <?=$final->email->address?>
+  <?php
+  }else{
+  ?>
+  <strong>Country Code:</strong> +<?=$final->phone->country_prefix?> <br>
+  <strong>Phone Number:</strong> <?=$final->phone->national_number?> 
+  
+  <?php
+  }
+  ?>  
+</p>
+<div class="buttons">
+  <button style="width:180px;height:75px; border: 3px solid #a1a1a1; border-radius: 15px; background-color: #f2e394; font: bold 20px Arial"; onclick="logout();">Click For Step 2 Verification</button>
+</div>
+<?php
+}
+?>
+</body>
+
+
+<script>
+  // initialize Account Kit with CSRF 
+  AccountKit_OnInteractive = function(){
+    AccountKit.init(
+      {
+        appId:ENTER YOUR OWN APP-ID,         
+        state:"ENTER ACCOUNT KIT CLIENT TOKEN", 
+        version:"v1.1"
+      }
+    );
+  };
+  // login callback
+  function loginCallback(response) {
+    console.log(response);
+    if (response.status === "PARTIALLY_AUTHENTICATED") {
+      document.getElementById("code").value = response.code;
+      document.getElementById("csrf_nonce").value = response.state;
+      document.getElementById("my_form").submit();
+    }
+    else if (response.status === "NOT_AUTHENTICATED") {
+      // handle authentication failure
+      console.log("Authentication failure");
+    }
+    else if (response.status === "BAD_PARAMS") {
+      // handle bad parameters
+      console.log("Bad parameters");
+    }
+  }
+  // phone form submission handler
+  function phone_btn_onclick() {
+    // you can add countryCode and phoneNumber to set values
+    AccountKit.login('PHONE', {}, 
+      loginCallback);
+  }
+  // email form submission handler
+  function email_btn_onclick() {  
+    AccountKit.login('EMAIL', {}, loginCallback);
+  }
+  // destroying session
+  function logout() {
+        document.location = 'index.php';
+  }
+</script>
+</html>
